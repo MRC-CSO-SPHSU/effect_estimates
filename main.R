@@ -112,41 +112,41 @@ action_list <- list(averaging = mean) # list of functions to evaluate
 todo <- tibble(action_columns, action_list) # combinations of functions applied to corresponding columns
 
 
-result <- pmap_dfc(todo, ~df %>% group_by_at(ids) %>% summarise_at(.x, .y))
+result <- pmap_dfc(todo, ~df %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
 result <- col_rename(result)
 
-result_t <- pmap_dfc(todo, ~df[dgn == "Male"] %>% group_by_at(ids) %>% summarise_at(.x, .y))
+result_t <- pmap_dfc(todo, ~df[dgn == "Male"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
 result_t <- col_rename(result_t, "_male")
 result <- merge(result, result_t, by=ids)
 
-result_t <- pmap_dfc(todo, ~df[dgn == "Female"] %>% group_by_at(ids) %>% summarise_at(.x, .y))
+result_t <- pmap_dfc(todo, ~df[dgn == "Female"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
 result_t <- col_rename(result_t, "_female")
 result <- merge(result, result_t, by=ids)
 
-result_t <- pmap_dfc(todo, ~df[dag >= 25 & dag < 45] %>% group_by_at(ids) %>% summarise_at(.x, .y))
+result_t <- pmap_dfc(todo, ~df[dag >= 25 & dag < 45] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
 result_t <- col_rename(result_t, "_young")
 result <- merge(result, result_t, by=ids)
 
-result_t <- pmap_dfc(todo, ~df[dag >= 45 & dag < 65] %>% group_by_at(ids) %>% summarise_at(.x, .y))
+result_t <- pmap_dfc(todo, ~df[dag >= 45 & dag < 65] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
 result_t <- col_rename(result_t, "_old")
 result <- merge(result, result_t, by=ids)
 
-result_t <- pmap_dfc(todo, ~df[les_c4 == "EmployedOrSelfEmployed"] %>% group_by_at(ids) %>% summarise_at(.x, .y))
+result_t <- pmap_dfc(todo, ~df[les_c4 == "EmployedOrSelfEmployed"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
 result_t <- col_rename(result_t, "_employed")
 result <- merge(result, result_t, by=ids)
 
-result_t <- pmap_dfc(todo, ~df[les_c4 == "NotEmployed"] %>% group_by_at(ids) %>% summarise_at(.x, .y))
+result_t <- pmap_dfc(todo, ~df[les_c4 == "NotEmployed"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
 result_t <- col_rename(result_t, "_unemployed")
 result <- merge(result, result_t, by=ids)
 
-result_t <- pmap_dfc(todo, ~df[deh_c3 == "Low"] %>% group_by_at(ids) %>% summarise_at(.x, .y))
+result_t <- pmap_dfc(todo, ~df[deh_c3 == "Low"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
 result_t <- col_rename(result_t, "_low_ed")
 result <- merge(result, result_t, by=ids)
 
-result_t <- pmap_dfc(todo, ~df[deh_c3 == "Medium"] %>% group_by_at(ids) %>% summarise_at(.x, .y))
+result_t <- pmap_dfc(todo, ~df[deh_c3 == "Medium"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
 result_t <- col_rename(result_t, "_medium_ed")
 result <- merge(result, result_t, by=ids)
 
-result_t <- pmap_dfc(todo, ~df[deh_c3 == "High"] %>% group_by_at(ids) %>% summarise_at(.x, .y))
+result_t <- pmap_dfc(todo, ~df[deh_c3 == "High"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
 result_t <- col_rename(result_t, "_high_ed")
 result <- merge(result, result_t, by=ids)

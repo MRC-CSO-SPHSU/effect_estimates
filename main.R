@@ -107,8 +107,9 @@ df$out_emp <- as.integer(format(factor(df$les_c4,
 
 # FIXME this works for every run, but not for all runs simultaneously
 ids = c("time","run") # common columns for all minor tables
+action_columns <- list(averaging = main_out_colnames)
 action_list <- list(averaging = mean) # list of functions to evaluate
-todo <- tibble(main_out_colnames, action_list) # combinations of functions applied to corresponding columns
+todo <- tibble(action_columns, action_list) # combinations of functions applied to corresponding columns
 
 
 result <- pmap_dfc(todo, ~df %>% group_by_at(ids) %>% summarise_at(.x, .y))

@@ -1,31 +1,30 @@
-# try installing haven
-# try installing other packages
-# load data in parallel - large memory consumption, but a single .dta file takes ages to load
-
-#install.packages("haven") # to read from dta
-#install.packages("data.table") # parallel data manipulation
-#install.packages("gsubfn") # string templates
-
-library("haven")
-library("data.table")
-library("gsubfn")
-library("readstata13")
+# import libraries, it is assumed they've been installed already
+library(data.table) # parallel data manipulation
+library(gsubfn) # string templates
+library(readstata13) # to read from dta
 library(magrittr)
 library(tibble)
 library(dplyr)
 library(tidyverse)
 library(R.utils)
 
+# a list of metric names in the main table
+main_out_colnames =  c('dhm', 'out_ghqcase', 'out_emp', 'laboursupplyweekly',
+                       'equivaliseddisposableincomeyearl', 'out_poverty')
+
 col_rename <- function(table_name, postfix = '') {
-  old_names = c('dhm', 'dummy_dhm', 'dummy_les_c4', 'laboursupplyweekly',
-                'equivaliseddisposableincomeyearl', 'dummy_atriskofpoverty')
-  name_pairs <- list('dhm' = 'mean_GHQ12', 'dummy_dhm' = 'prevalence_GHQ12',
-                     'dummy_les_c4' = 'prevalence_employment',
+  #' Renames columns for them to have more meaningful names.
+  #'
+  #' @param table_name a table to be modified.
+  #' @param postfix a column name postfix that's added to differentiate metrics
+  #' for various population groups, defaults to ''.
+  name_pairs <- list('dhm' = 'mean_GHQ12', 'out_ghqcase' = 'prevalence_GHQ12',
+                     'out_emp' = 'prevalence_employment',
                      'laboursupplyweekly' = 'mean_hours',
                      'equivaliseddisposableincomeyearl' = 'mean_income',
-                     'dummy_atriskofpoverty' = 'prevalence_poverty')
+                     'out_poverty' = 'prevalence_poverty')
 
-  for (name_ in old_names) {
+  for (name_ in main_out_colnames) {
     new_name = paste(name_pairs[[name_]], postfix, sep = "", collapse = NULL)
     names(table_name)[names(table_name) == name_] <- new_name
   }
@@ -55,9 +54,13 @@ col_rename <- function(table_name, postfix = '') {
 #   }
 # }
 
+# set the number of threads to decrease the time of file reading/writing
 data.table::getDTthreads()
 data.table::setDTthreads(8)
 
+# reads the file, only one at the moment. Decompression takes some time,
+# but compressed files use 5 times less space. We also read
+# a selected set of columns to save memory/time
 df <- fread(file="data/S1/baseline.csv.gz",
             select = c('dhm', 'les_c4', 'laboursupplyweekly', 'dag',
                        'equivaliseddisposableincomeyearl', 'atriskofpoverty',
@@ -70,42 +73,42 @@ df <- fread(file="data/S1/baseline.csv.gz",
                        'n_children_7', 'n_children_8', 'n_children_9'))
 
 
-unique_years <- unique(df$time)
-unique_runs <- unique(df$run)
-unique_weekly_hours <- unique(df$laboursupplyweekly)
-unique_weekly_hours_numeric <- c(0, 20, 10, 40, 30)
-unique_labour_status <- unique(df$les_c4)
-unique_labour_status_numeric <- c(0, 1, 0, 0)
-unique_atriskofpoverty_status <- unique(df$atriskofpoverty) # "0" "1" "null"
-unique_atriskofpoverty_status_numeric <- c(0, 1, 1)
+unique_years <- unique(df$time) # all available year values
+unique_runs <- unique(df$run) # all values of run ids
 
-df$dummy_dhm <- ifelse(df$dhm<=24, 1, 0)
+unique_weekly_hours <- unique(df$laboursupplyweekly) # string values of working hours/week
+unique_weekly_hours_numeric <- c(0, 20, 10, 40, 30) # integer values of unique_weekly_hours, used to convert chars to ints properly
+
+unique_labour_status <- unique(df$les_c4) # employment status
+unique_labour_status_numeric <- c(0, 1, 0, 0) # conversion to employed/unemployed as integer/boolean
+
+unique_atriskofpoverty_status <- unique(df$atriskofpoverty) # "0" "1" "null" as no, yes, missing value (interpreted as yes)
+unique_atriskofpoverty_status_numeric <- c(0, 1, 1) # integer/boolean values of poverty status
+
+df$out_ghqcase <- ifelse(df$dhm<=24, 1, 0) # cut quasi-continuous interval into two sub-intervals
 
 # atriskofpoverty is chars, check for empty strings, char nulls
 # les_c4 is the same
 
-df$dummy_atriskofpoverty <- as.integer(format(factor(df$atriskofpoverty,
-                                                     levels = unique_atriskofpoverty_status,
-                                                     labels = unique_atriskofpoverty_status_numeric))) # kind of slow
+# convert poverty status to ints
+df$out_poverty <- as.integer(format(factor(df$atriskofpoverty,
+                                           levels = unique_atriskofpoverty_status,
+                                           labels = unique_atriskofpoverty_status_numeric))) # kind of slow
 
+# convert labour category to ints
 df$laboursupplyweekly <- as.integer(format(factor(df$laboursupplyweekly,
                                                   levels = unique_weekly_hours,
                                                   labels = unique_weekly_hours_numeric))) # kind of slow
 
-df$dummy_les_c4 <- as.integer(format(factor(df$les_c4,
-                                                  levels = unique_labour_status,
-                                                  labels = unique_labour_status_numeric))) # kind of slow
+# convert employment category to ints
+df$out_emp <- as.integer(format(factor(df$les_c4,
+                                       levels = unique_labour_status,
+                                       labels = unique_labour_status_numeric))) # kind of slow
 
-
-ids = c("time","run") # FIXME this works for every run, but not for all runs simultaneously
-
-# colnames for averaging
-do_over <- list(averaging = c("dhm", "dummy_dhm", "laboursupplyweekly",
-                              "equivaliseddisposableincomeyearl",
-                              "dummy_atriskofpoverty", "dummy_les_c4"))
-do_what <- list(averaging = mean)
-
-todo <- tibble(do_over, do_what)
+# FIXME this works for every run, but not for all runs simultaneously
+ids = c("time","run") # common columns for all minor tables
+action_list <- list(averaging = mean) # list of functions to evaluate
+todo <- tibble(main_out_colnames, action_list) # combinations of functions applied to corresponding columns
 
 
 result <- pmap_dfc(todo, ~df %>% group_by_at(ids) %>% summarise_at(.x, .y))

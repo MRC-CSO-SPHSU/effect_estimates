@@ -1,78 +1,93 @@
 # import libraries, it is assumed they've been installed already
 library(data.table) # parallel data manipulation
 library(gsubfn) # string templates
-library(readstata13) # to read from dta
+library(readstata13) # to read from .dta files
 library(magrittr)
 library(tibble)
 library(dplyr)
 library(tidyverse)
 library(R.utils)
 
-# a list of metric names in the main table
-main_out_colnames =  c('dhm', 'out_ghqcase', 'out_emp', 'laboursupplyweekly',
-                       'equivaliseddisposableincomeyearl', 'out_poverty')
-
-col_rename <- function(table_name, postfix = '') {
-  #' Renames columns for them to have more meaningful names.
-  #'
-  #' @param table_name a table to be modified.
-  #' @param postfix a column name postfix that's added to differentiate metrics
-  #' for various population groups, defaults to ''.
-  name_pairs <- list('dhm' = 'mean_GHQ12', 'out_ghqcase' = 'prevalence_GHQ12',
-                     'out_emp' = 'prevalence_employment',
-                     'laboursupplyweekly' = 'mean_hours',
-                     'equivaliseddisposableincomeyearl' = 'mean_income',
-                     'out_poverty' = 'prevalence_poverty')
-
-  for (name_ in main_out_colnames) {
-    new_name = paste(name_pairs[[name_]], postfix, sep = "", collapse = NULL)
-    names(table_name)[names(table_name) == name_] <- new_name
-  }
-  table_name
-}
-
-# scenario_id <- c("S1", "S2", "S3")
-# experiment_id <- c("baseline", "reform")
-# data.table::getDTthreads()
-# data.table::setDTthreads(8)
-# # no parallel data reading at the moment
-# for (sid in scenario_id) {
-#   for (eid in experiment_id) {
-#     fn <- gsubfn(, list(id1 = sid, id2 = eid), "data/$id1/$id2")
-#
-#     filename <- paste(fn,".dta", sep="")
-#     print(filename)
-#     tictoc::tic("read full file")
-#     datum <- read.dta13(filename) # read Stata file
-#     tictoc::toc()
-#
-#     filename <- paste(fn,".csv.gz", sep="")
-#     print(filename)
-#     tictoc::tic("write full file")
-#     fwrite(datum, file = filename) #parallel write using data.table
-#     tictoc::toc()
-#   }
-# }
-
 # set the number of threads to decrease the time of file reading/writing
 data.table::getDTthreads()
 data.table::setDTthreads(8)
 
-# reads the file, only one at the moment. Decompression takes some time,
-# but compressed files use 5 times less space. We also read
-# a selected set of columns to save memory/time
-df <- fread(file="data/S1/baseline.csv.gz",
-            select = c('dhm', 'les_c4', 'laboursupplyweekly', 'dag',
-                       'equivaliseddisposableincomeyearl', 'atriskofpoverty',
-                       'dgn', 'deh_c3', 'run', 'time',
-                       'n_children_0', 'n_children_1', 'n_children_10',
-                       'n_children_11', 'n_children_12','n_children_13',
-                       'n_children_14', 'n_children_15', 'n_children_16',
-                       'n_children_17', 'n_children_2', 'n_children_3',
-                       'n_children_4', 'n_children_5', 'n_children_6',
-                       'n_children_7', 'n_children_8', 'n_children_9'))
+# a list of variables in the main table
+main_out_colnames =  c('dhm', 'les_c4', 'laboursupplyweekly', 'out_ghqcase',
+                       'equivaliseddisposableincomeyearl', 'atriskofpoverty')
 
+rename_final_columns <- function(data_table_name, postfix) {
+  # TODO this can be wrapped into a function as the number of columns increases
+  names(data_table_name)[names(data_table_name) == 'dhm'] <- paste("out_ghq", postfix, sep="_")
+  names(data_table_name)[names(data_table_name) == 'out_ghqcase'] <- paste("out_ghqcase", postfix, sep="_")
+  names(data_table_name)[names(data_table_name) == 'les_c4'] <- paste("out_emp", postfix, sep="_")
+  names(data_table_name)[names(data_table_name) == 'laboursupplyweekly'] <- paste("out_emphrs", postfix, sep="_")
+  names(data_table_name)[names(data_table_name) == 'equivaliseddisposableincomeyearl'] <- paste("out_income", postfix, sep="_")
+  names(data_table_name)[names(data_table_name) == 'atriskofpoverty'] <- paste("out_poverty", postfix, sep="_")
+  data_table_name
+}
 
+get_summary_statistics <- function(main_column_names, # common columns for all minor tables, run id is missing when summarize over all runs
+                                   data_table_name, experiment_stage) {
+  action_columns <- list(averaging = main_out_colnames)
+  action_list <- list(averaging = mean) # list of functions to evaluate
+  todo <- tibble(action_columns, action_list) # combinations of functions applied to corresponding columns
+
+  pmap_dfc(todo, ~data_table_name[experiment==experiment_stage] %>% group_by(across(all_of(main_column_names))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
+}
+
+df <- data.table()
+#scenario_id <- c("S1", "S2", "S3")
+scenario_id <- c("S1")
+experiment_id <- c("baseline", "reform")
+# no parallel data reading at the moment
+for (sid in scenario_id) {
+  for (eid in experiment_id) {
+    # reads the file, only one at the moment. Decompression takes some time,
+    # but compressed files use 5 times less space. We also read
+    # a selected set of columns to save memory/time
+    fn <- paste(paste("data", sid, eid, sep="/"), "csv.gz", sep=".")
+    df_scratch <- fread(file=fn,
+                        select = c('laboursupplyweekly', 'atriskofpoverty',
+                                   'equivaliseddisposableincomeyearl',
+                                   'n_children_0', 'n_children_1',
+                                   'n_children_10', 'n_children_11', 'run',
+                                   'n_children_12','n_children_13', 'dag',
+                                   'n_children_14', 'n_children_15', 'dgn',
+                                   'n_children_16', 'n_children_17', 'deh_c3',
+                                   'n_children_2', 'n_children_3', 'time',
+                                   'n_children_4', 'n_children_5', 'dhm',
+                                   'n_children_6', 'n_children_7', 'les_c4',
+                                   'n_children_8', 'n_children_9'))
+
+    # add scenario/arm id now at the cost of memory
+    df_scratch[, scenario:=sid]
+    df_scratch[, experiment:=eid]
+    # do the type conversion right within the loop
+    # no check for NA for now
+    df_scratch$grp_hchild <- select(df_scratch, contains("n_children")) %>% rowSums %>% as.logical
+    df_scratch$grp_nchild <- !df_scratch$grp_hchild
+
+    # drop number of children columns
+    df_scratch <- df_scratch %>% select(-starts_with("n_children"))
+
+    # glue together
+    df <- rbind(df, df_scratch)
+  }
+}
+# free memory
+rm(df_scratch)
+gc()
+
+# convert certain columns to categorical
+df$scenario <- as.factor(df$scenario)
+df$experiment <- as.factor(df$experiment)
+df$dgn <- as.factor(df$dgn)
+df$deh_c3 <- as.factor(df$deh_c3)
+
+gc()
+
+# convert initial raw data into something to work with
 unique_years <- unique(df$time) # all available year values
 unique_runs <- unique(df$run) # all values of run ids
 
@@ -91,7 +106,7 @@ df$out_ghqcase <- ifelse(df$dhm<=24, 1, 0) # cut quasi-continuous interval into 
 # les_c4 is the same
 
 # convert poverty status to ints
-df$out_poverty <- as.integer(format(factor(df$atriskofpoverty,
+df$atriskofpoverty <- as.integer(format(factor(df$atriskofpoverty,
                                            levels = unique_atriskofpoverty_status,
                                            labels = unique_atriskofpoverty_status_numeric))) # kind of slow
 
@@ -101,52 +116,22 @@ df$laboursupplyweekly <- as.integer(format(factor(df$laboursupplyweekly,
                                                   labels = unique_weekly_hours_numeric))) # kind of slow
 
 # convert employment category to ints
-df$out_emp <- as.integer(format(factor(df$les_c4,
+df$les_c4 <- as.integer(format(factor(df$les_c4,
                                        levels = unique_labour_status,
                                        labels = unique_labour_status_numeric))) # kind of slow
 
-# FIXME this works for every run, but not for all runs simultaneously
-ids = c("time","run") # common columns for all minor tables
-action_columns <- list(averaging = main_out_colnames)
-action_list <- list(averaging = mean) # list of functions to evaluate
-todo <- tibble(action_columns, action_list) # combinations of functions applied to corresponding columns
+gc()
 
+ids = c("time", "scenario", "run")
 
-result <- pmap_dfc(todo, ~df %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
-result <- col_rename(result)
+main_loop <- function(eid_) {
+  per_run <- get_summary_statistics(ids, df, eid_)
+  per_run <- rename_final_columns(per_run, eid_)
 
-result_t <- pmap_dfc(todo, ~df[dgn == "Male"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
-result_t <- col_rename(result_t, "_male")
-result <- merge(result, result_t, by=ids)
+  per_all <- get_summary_statistics(c("time", "scenario"), df, eid_)
+  per_all <- rename_final_columns(per_all, eid_)
+  bind_rows(per_run, per_all)
+}
 
-result_t <- pmap_dfc(todo, ~df[dgn == "Female"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
-result_t <- col_rename(result_t, "_female")
-result <- merge(result, result_t, by=ids)
-
-result_t <- pmap_dfc(todo, ~df[dag >= 25 & dag < 45] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
-result_t <- col_rename(result_t, "_young")
-result <- merge(result, result_t, by=ids)
-
-result_t <- pmap_dfc(todo, ~df[dag >= 45 & dag < 65] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
-result_t <- col_rename(result_t, "_old")
-result <- merge(result, result_t, by=ids)
-
-result_t <- pmap_dfc(todo, ~df[les_c4 == "EmployedOrSelfEmployed"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
-result_t <- col_rename(result_t, "_employed")
-result <- merge(result, result_t, by=ids)
-
-result_t <- pmap_dfc(todo, ~df[les_c4 == "NotEmployed"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
-result_t <- col_rename(result_t, "_unemployed")
-result <- merge(result, result_t, by=ids)
-
-result_t <- pmap_dfc(todo, ~df[deh_c3 == "Low"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
-result_t <- col_rename(result_t, "_low_ed")
-result <- merge(result, result_t, by=ids)
-
-result_t <- pmap_dfc(todo, ~df[deh_c3 == "Medium"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
-result_t <- col_rename(result_t, "_medium_ed")
-result <- merge(result, result_t, by=ids)
-
-result_t <- pmap_dfc(todo, ~df[deh_c3 == "High"] %>% group_by(across(all_of(ids))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
-result_t <- col_rename(result_t, "_high_ed")
-result <- merge(result, result_t, by=ids)
+result <- lapply(experiment_id, main_loop) %>% reduce(left_join, by = ids)
+result$grp_all <- 1

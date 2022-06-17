@@ -16,6 +16,17 @@ data.table::setDTthreads(8)
 main_out_colnames =  c('dhm', 'les_c4', 'laboursupplyweekly', 'out_ghqcase',
                        'equivaliseddisposableincomeyearl', 'atriskofpoverty')
 
+ids = c("scenario", "run", "time")
+
+main_loop <- function(eid_, dft) {
+  per_run <- get_summary_statistics(ids, dft, eid_)
+  per_run <- rename_final_columns(per_run, eid_)
+
+  per_all <- get_summary_statistics(c("time", "scenario"), dft, eid_)
+  per_all <- rename_final_columns(per_all, eid_)
+  bind_rows(per_run, per_all)
+}
+
 rename_final_columns <- function(data_table_name, postfix) {
   # TODO this can be wrapped into a function as the number of columns increases
   names(data_table_name)[names(data_table_name) == 'dhm'] <- paste("out_ghq", postfix, sep="_")
@@ -122,16 +133,60 @@ df$les_c4 <- as.integer(format(factor(df$les_c4,
 
 gc()
 
-ids = c("time", "scenario", "run")
+result <- lapply(experiment_id, main_loop, dft=df) %>% reduce(left_join, by = ids)
+result$grp_all <- TRUE
 
-main_loop <- function(eid_) {
-  per_run <- get_summary_statistics(ids, df, eid_)
-  per_run <- rename_final_columns(per_run, eid_)
+subpop_result <- lapply(experiment_id, main_loop, dft=df[dgn=="Male"]) %>% reduce(left_join, by = ids)
+subpop_result$grp_male <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
 
-  per_all <- get_summary_statistics(c("time", "scenario"), df, eid_)
-  per_all <- rename_final_columns(per_all, eid_)
-  bind_rows(per_run, per_all)
-}
+subpop_result <- lapply(experiment_id, main_loop, dft=df[dgn=="Female"]) %>% reduce(left_join, by = ids)
+subpop_result$grp_female <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
 
-result <- lapply(experiment_id, main_loop) %>% reduce(left_join, by = ids)
-result$grp_all <- 1
+subpop_result <- lapply(experiment_id, main_loop, dft=df[dag >= 25 & dag < 45]) %>% reduce(left_join, by = ids)
+subpop_result$grp_age25 <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
+
+subpop_result <- lapply(experiment_id, main_loop, dft=df[dag >= 45 & dag < 65]) %>% reduce(left_join, by = ids)
+subpop_result$grp_age45 <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
+
+subpop_result <- lapply(experiment_id, main_loop, dft=df[grp_hchild == TRUE]) %>% reduce(left_join, by = ids)
+subpop_result$grp_hchild <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
+
+subpop_result <- lapply(experiment_id, main_loop, dft=df[grp_nchild == TRUE]) %>% reduce(left_join, by = ids)
+subpop_result$grp_nchild <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
+
+subpop_result <- lapply(experiment_id, main_loop, dft=df[les_c4 == 1]) %>% reduce(left_join, by = ids)
+subpop_result$grp_emp <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
+
+subpop_result <- lapply(experiment_id, main_loop, dft=df[les_c4 == 0]) %>% reduce(left_join, by = ids)
+subpop_result$grp_unemp <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
+
+subpop_result <- lapply(experiment_id, main_loop, dft=df[les_c4 == 1 & atriskofpoverty == 1]) %>% reduce(left_join, by = ids)
+subpop_result$grp_povin <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
+
+subpop_result <- lapply(experiment_id, main_loop, dft=df[les_c4 == 0 & atriskofpoverty == 1]) %>% reduce(left_join, by = ids)
+subpop_result$grp_povout <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
+
+subpop_result <- lapply(experiment_id, main_loop, dft=df[deh_c3 == "Low"]) %>% reduce(left_join, by = ids)
+subpop_result$grp_edlow <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
+
+subpop_result <- lapply(experiment_id, main_loop, dft=df[deh_c3 == "Medium"]) %>% reduce(left_join, by = ids)
+subpop_result$grp_edmed <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
+
+subpop_result <- lapply(experiment_id, main_loop, dft=df[deh_c3 == "High"]) %>% reduce(left_join, by = ids)
+subpop_result$grp_edhi <- TRUE
+result <- do.call(rbind, list(result, subpop_result))
+
+# NOTE check original subgroup restrictions, make sure everything is correct
+# especially the employment status that's reduced to two possible states with loss of information

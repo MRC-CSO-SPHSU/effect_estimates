@@ -48,13 +48,10 @@ get_summary_statistics <- function(main_column_names, # common columns for all m
 }
 
 get_effects <-function(data_table) {
-  data_table$eff_ghq <- data_table$out_ghq_baseline - data_table$out_ghq_reform
-  data_table$eff_ghqcase <- data_table$out_ghqcase_baseline - data_table$out_ghqcase_reform
-  data_table$eff_emp <- data_table$out_emp_baseline - data_table$out_emp_reform
-  data_table$eff_emphrs <- data_table$out_emphrs_baseline - data_table$out_emphrs_reform
-  data_table$eff_income <- data_table$out_income_baseline - data_table$out_income_reform
-  data_table$eff_poverty <- data_table$out_poverty_baseline - data_table$out_poverty_reform
-  #get ranks at this point
+  column_names <- c('ghq', 'ghqcase', 'emp', 'emphrs', 'income', 'poverty')
+  for (n in column_names) {
+    data_table[paste("eff", n, sep="_")] <- data_table[paste("out", n, "baseline", sep="_")] - data_table[paste("out", n, "reform", sep="_")]
+  }
   data_table
 }
 

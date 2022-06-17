@@ -47,6 +47,17 @@ get_summary_statistics <- function(main_column_names, # common columns for all m
   pmap_dfc(todo, ~data_table_name[experiment==experiment_stage] %>% group_by(across(all_of(main_column_names))) %>% summarise(across(all_of(.x), .y), .groups = 'keep'))
 }
 
+get_effects <-function(data_table) {
+  data_table$eff_ghq <- data_table$out_ghq_baseline - data_table$out_ghq_reform
+  data_table$eff_ghqcase <- data_table$out_ghqcase_baseline - data_table$out_ghqcase_reform
+  data_table$eff_emp <- data_table$out_emp_baseline - data_table$out_emp_reform
+  data_table$eff_emphrs <- data_table$out_emphrs_baseline - data_table$out_emphrs_reform
+  data_table$eff_income <- data_table$out_income_baseline - data_table$out_income_reform
+  data_table$eff_poverty <- data_table$out_poverty_baseline - data_table$out_poverty_reform
+  #get ranks at this point
+  data_table
+}
+
 df <- data.table()
 #scenario_id <- c("S1", "S2", "S3")
 scenario_id <- c("S1")
@@ -135,58 +146,59 @@ gc()
 
 result <- lapply(experiment_id, main_loop, dft=df) %>% reduce(left_join, by = ids)
 result$grp_all <- TRUE
+result <- result %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[dgn=="Male"]) %>% reduce(left_join, by = ids)
 subpop_result$grp_male <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[dgn=="Female"]) %>% reduce(left_join, by = ids)
 subpop_result$grp_female <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[dag >= 25 & dag < 45]) %>% reduce(left_join, by = ids)
 subpop_result$grp_age25 <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[dag >= 45 & dag < 65]) %>% reduce(left_join, by = ids)
 subpop_result$grp_age45 <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[grp_hchild == TRUE]) %>% reduce(left_join, by = ids)
 subpop_result$grp_hchild <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[grp_nchild == TRUE]) %>% reduce(left_join, by = ids)
 subpop_result$grp_nchild <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[les_c4 == 1]) %>% reduce(left_join, by = ids)
 subpop_result$grp_emp <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[les_c4 == 0]) %>% reduce(left_join, by = ids)
 subpop_result$grp_unemp <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[les_c4 == 1 & atriskofpoverty == 1]) %>% reduce(left_join, by = ids)
 subpop_result$grp_povin <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[les_c4 == 0 & atriskofpoverty == 1]) %>% reduce(left_join, by = ids)
 subpop_result$grp_povout <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[deh_c3 == "Low"]) %>% reduce(left_join, by = ids)
 subpop_result$grp_edlow <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[deh_c3 == "Medium"]) %>% reduce(left_join, by = ids)
 subpop_result$grp_edmed <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 subpop_result <- lapply(experiment_id, main_loop, dft=df[deh_c3 == "High"]) %>% reduce(left_join, by = ids)
 subpop_result$grp_edhi <- TRUE
-result <- do.call(rbind, list(result, subpop_result))
+result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 # NOTE check original subgroup restrictions, make sure everything is correct
 # especially the employment status that's reduced to two possible states with loss of information

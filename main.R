@@ -50,7 +50,8 @@ get_summary_statistics <- function(main_column_names, # common columns for all m
 get_effects <-function(data_table) {
   column_names <- c('ghq', 'ghqcase', 'emp', 'emphrs', 'income', 'poverty')
   for (n in column_names) {
-    data_table[paste("eff", n, sep="_")] <- data_table[paste("out", n, "baseline", sep="_")] - data_table[paste("out", n, "reform", sep="_")]
+    names <- c(paste("eff", n, sep="_"), paste(n, "baseline", sep="_"), paste(n, "reform", sep="_"))
+    data_table[names[[1]]] <- data_table[paste("out", names[[2]], sep="_")] - data_table[paste("out", names[[3]], sep="_")]
   }
   data_table
 }
@@ -199,3 +200,27 @@ result <- do.call(rbind, list(result, subpop_result)) %>% get_effects
 
 # NOTE check original subgroup restrictions, make sure everything is correct
 # especially the employment status that's reduced to two possible states with loss of information
+
+vars <- c("ghq", "emp", "emphrs", "ghqcase", "income", "poverty")
+for (v in vars) {
+  result[paste("rank", v, "baseline", sep="_")] <- NA
+  result[paste("rank", v, "reform", sep="_")] <- NA
+  result[paste("rank", "eff", v, sep="_")] <- NA
+}
+
+for (sid in scenario_id) {
+  for (actual_year in unique_years) {
+    for (group in colnames(result)[grep('grp_', colnames(result))]) {
+      for (v in vars) {
+        data_selection = which(result$scenario == sid & # pick values for a given year and scenario
+                                 result$time == actual_year &
+                                 !is.na(result$run) & # drop NA in runs, this stage contains data for a given year and scenario and for all pop groups
+                                 !is.na(result[group])) # get all vars - must be 50 rows only
+        # generate ranks for every var
+        result[data_selection,][paste("rank", v, "baseline", sep="_")] <- rank(result[data_selection,][paste("out", v, "baseline", sep="_")])
+        result[data_selection,][paste("rank", v, "reform", sep="_")] <- rank(result[data_selection,][paste("out", v, "reform", sep="_")])
+        result[data_selection,][paste("rank", "eff", v, sep="_")] <- rank(result[data_selection,][paste("eff", v, sep="_")])
+      }
+    }
+  }
+}

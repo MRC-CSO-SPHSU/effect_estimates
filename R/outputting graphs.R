@@ -32,13 +32,13 @@ compare_results |>
   ggplot(aes(time, out, colour = policy, fill = policy)) +
   geom_vline(xintercept = 2019, colour = "red") +
   stat_summary(
-    fun.data = mean_se,
+    fun.data = mean_se, fun.args = list(mult = 1.96),
     geom = "ribbon",
     alpha = 0.5,
     colour = NA
   ) +
-  stat_summary(fun.data = mean_se, geom = "line") +
-  stat_summary(fun.data = mean_se, geom = "point") +
+  stat_summary(fun.data = mean_se, fun.args = list(mult = 1.96), geom = "line") +
+  stat_summary(fun.data = mean_se, fun.args = list(mult = 1.96), geom = "point") +
   facet_wrap(~ outcome, scales = "free_y") +
   scale_fill_manual(
     "Policy",

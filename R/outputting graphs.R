@@ -51,11 +51,14 @@ compare_results |>
   stat_summary(fun.data = median_hilow, geom = "point") +
   facet_wrap(~ outcome, scales = "free_y") +
   scale_fill_manual(
-    "Policy",
+    "Policy:",
     aesthetics = c("fill", "colour"),
     labels = c("Baseline", "Covid policy"),
-    values = sphsu_cols("University Blue", "Thistle", names = FALSE)
+    values = sphsu_cols("University Blue", "Rust", names = FALSE)
   ) +
-  labs(caption = "Notes:\n50 simulation runs in each condition.\nRed line denotes reform implementation point") +
+  labs(caption = paste("Notes:",
+       "50 simulation runs in each condition.",
+       "Red line denotes reform implementation point",
+       sep = "\n")) +
   theme(legend.position = "bottom",
         plot.caption = element_text(hjust = 0))

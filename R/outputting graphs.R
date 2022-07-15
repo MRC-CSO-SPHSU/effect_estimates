@@ -1,6 +1,7 @@
 library(readr)
 library(tidyverse)
 library(SPHSUgraphs)
+library(hmisc)
 
 out_data <-
   read_csv("C:/Programming/covid19_effect_estimates/data/new_data.csv",
@@ -10,7 +11,8 @@ out_data <-
 # tidying dataset ---------------------------------------------------------
 
 
-compare_results <- out_data |>
+compare_results <-
+  out_data |>
   filter(grp_all == TRUE, !is.na(run)) |>
   select(-contains("eff"), -starts_with("grp")) |>
   pivot_longer(
@@ -26,19 +28,27 @@ compare_results <- out_data |>
   )
 
 
+# Examining quantiles
+compare_results |>
+  group_by(scenario, time, outcome, policy) |>
+  summarise(median = median(out),
+            lower = quantile(out, 0.05),
+            upper = quantile(out, 0.95))
+
 # faceted graph -----------------------------------------------------------
+
 
 compare_results |>
   ggplot(aes(time, out, colour = policy, fill = policy)) +
   geom_vline(xintercept = 2019, colour = "red") +
   stat_summary(
-    fun.data = mean_se, fun.args = list(mult = 1.96),
+    fun.data = median_hilow,
     geom = "ribbon",
     alpha = 0.5,
     colour = NA
   ) +
-  stat_summary(fun.data = mean_se, fun.args = list(mult = 1.96), geom = "line") +
-  stat_summary(fun.data = mean_se, fun.args = list(mult = 1.96), geom = "point") +
+  stat_summary(fun.data = median_hilow, geom = "line") +
+  stat_summary(fun.data = median_hilow, geom = "point") +
   facet_wrap(~ outcome, scales = "free_y") +
   scale_fill_manual(
     "Policy",
@@ -46,4 +56,6 @@ compare_results |>
     labels = c("Baseline", "Covid policy"),
     values = sphsu_cols("University Blue", "Thistle", names = FALSE)
   ) +
-  theme(legend.position = "bottom")
+  labs(caption = "Notes:\n50 simulation runs in each condition.\nRed line denotes reform implementation point") +
+  theme(legend.position = "bottom",
+        plot.caption = element_text(hjust = 0))

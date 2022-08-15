@@ -1,7 +1,7 @@
 library(readr)
 library(tidyverse)
 library(SPHSUgraphs)
-library(hmisc)
+library(Hmisc)
 
 out_data <-
   read_csv("C:/Programming/covid19_effect_estimates/data/new_data.csv",
@@ -38,9 +38,11 @@ compare_results |>
 # faceted graph -----------------------------------------------------------
 
 
+
 compare_results |>
   ggplot(aes(time, out, colour = policy, fill = policy)) +
-  geom_vline(xintercept = 2019, colour = "red") +
+  geom_vline(aes(xintercept = 2019, linetype = "Covid reform\nimplementation"),
+             colour = "red") +
   stat_summary(
     fun.data = median_hilow,
     geom = "ribbon",
@@ -49,16 +51,21 @@ compare_results |>
   ) +
   stat_summary(fun.data = median_hilow, geom = "line") +
   stat_summary(fun.data = median_hilow, geom = "point") +
-  facet_wrap(~ outcome, scales = "free_y") +
+  facet_wrap( ~ outcome, scales = "free_y") +
   scale_fill_manual(
     "Policy:",
     aesthetics = c("fill", "colour"),
     labels = c("Baseline", "Covid policy"),
     values = sphsu_cols("University Blue", "Rust", names = FALSE)
   ) +
-  labs(caption = paste("Notes:",
-       "50 simulation runs in each condition.",
-       "Red line denotes reform implementation point",
-       sep = "\n")) +
+  scale_linetype("") +
+  labs(
+    caption = paste(
+      "Notes:",
+      "50 simulation runs in each condition.",
+      "Red line denotes reform implementation point",
+      sep = "\n"
+    )
+  ) +
   theme(legend.position = "bottom",
         plot.caption = element_text(hjust = 0))

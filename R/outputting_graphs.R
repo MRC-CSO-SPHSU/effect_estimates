@@ -1,10 +1,9 @@
 library(readr)
 library(tidyverse)
-library(SPHSUgraphs)
-library(Hmisc)
+source(file.path(getwd(), "R/graphing_functions.R"))
 
 out_data <-
-  read_csv("C:/Programming/covid19_effect_estimates/data/new_data.csv",
+  read_csv(file.path(getwd(), "data/new_data.csv"),
            show_col_types = FALSE)
 
 out_data |>

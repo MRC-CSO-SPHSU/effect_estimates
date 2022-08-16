@@ -4,7 +4,11 @@
 #' @param comparison_var Column to graph comparison
 #' @param group_var Column with `TRUE` values corresponding to group
 #' @param y_lab Title for y axis
+#'
 #' @return A ggplot object
+#'
+#' @export
+#'
 #' @examples
 #' out_data |>
 #'   graph_policy_comparisons(out_ghq_baseline, out_ghq_reform,  y_lab = "GQH score")

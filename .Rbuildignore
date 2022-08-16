@@ -1,0 +1,5 @@
+^renv$
+^renv\.lock$
+^covid19_effect_estimates\.Rproj$
+^\.Rproj\.user$
+data\new_data.csv

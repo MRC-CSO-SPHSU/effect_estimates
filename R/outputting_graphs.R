@@ -7,8 +7,13 @@ out_data <-
   read_csv("C:/Programming/covid19_effect_estimates/data/new_data.csv",
            show_col_types = FALSE)
 
+out_data |>
+  graph_policy_comparisons(out_ghq_baseline, out_ghq_reform,  y_lab = "GQH score")
 
-# tidying dataset ---------------------------------------------------------
+
+# manual output (testing) -------------------------------------------------
+
+## tidying dataset --------------------------------------------------------
 
 
 compare_results <-
@@ -28,14 +33,14 @@ compare_results <-
   )
 
 
-# Examining quantiles
+## Examining quantiles -----------------------------------------------------
 compare_results |>
   group_by(scenario, time, outcome, policy) |>
   summarise(median = median(out),
             lower = quantile(out, 0.05),
             upper = quantile(out, 0.95))
 
-# faceted graph -----------------------------------------------------------
+## faceted graph -----------------------------------------------------------
 
 
 

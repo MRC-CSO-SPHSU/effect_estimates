@@ -4,18 +4,31 @@
 #' @param comparison_var Column to graph comparison
 #' @param group_var Column with `TRUE` values corresponding to group
 #' @param y_lab Title for y axis
+#' @param agg_method Aggregating method for combining lines/points (defaults to median; does not affect confidence intervals)
+#' @param ci_geom `geom` to display confidence intervals (defaults to "ribbon")
 #' @return A ggplot object
 #' @examples
 #' out_data |>
 #'   graph_policy_comparisons(out_ghq_baseline, out_ghq_reform,  y_lab = "GQH score")
 
+
 graph_policy_comparisons <-
-  function(.data, baseline_var, comparison_var, group_var = grp_all, y_lab = "") {
+  function(.data,
+           baseline_var,
+           comparison_var,
+           group_var = grp_all,
+           y_lab = "",
+           agg_method = median,
+           ci_geom = c("ribbon", "errorbar", "linerange", "crossbar")) {
+
+    ci_geom <- match.arg(ci_geom)
 
     require(ggplot2)
     require(SPHSUgraphs)
     require(dplyr)
     require(tidyr)
+
+    # agg_method <- match.arg(agg_method)
 
     baseline_var <- enquo(baseline_var)
     comparison_var <- enquo(comparison_var)
@@ -33,14 +46,21 @@ graph_policy_comparisons <-
       ggplot(aes(time, val, colour = case, fill = case)) +
       geom_vline(aes(xintercept = 2019, linetype = "Covid reform\nimplementation"),
                  colour = "red") +
-      stat_summary(
+      {if (ci_geom == "ribbon") {
+        stat_summary(
         fun.data = median_hilow,
         geom = "ribbon",
         alpha = 0.5,
-        colour = NA
-      ) +
-      stat_summary(fun.data = median_hilow, geom = "line") +
-      stat_summary(fun.data = median_hilow, geom = "point") +
+        colour = NA)
+      } else {
+        stat_summary(
+        fun.data = median_hilow,
+        geom = ci_geom,
+        width = 0.2,
+        size = 1)
+      }} +
+      stat_summary(fun = agg_method, geom = "line") +
+      stat_summary(fun = agg_method, geom = "point") +
       scale_fill_manual(
         "Policy:",
         aesthetics = c("fill", "colour"),
@@ -65,7 +85,17 @@ graph_policy_comparisons <-
   }
 
 # out_data |>
-#   graph_policy_comparisons(out_ghq_baseline, out_ghq_reform,  y_lab = "GQH score")
+#   graph_policy_comparisons(out_ghq_baseline, out_ghq_reform,  y_lab = "GQH score", agg_method = median,
+#                            ci_geom = "ribbon")
+#
+# out_data |>
+#   graph_policy_comparisons(
+#     out_ghq_baseline,
+#     out_ghq_reform,
+#     y_lab = "GQH score",
+#     agg_method = mean,
+#     ci_geom = "errorbar"
+#   )
 #
 # out_data |>
 #   graph_policy_comparisons(out_ghqcase_baseline, out_ghqcase_reform, grp_male)

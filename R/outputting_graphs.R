@@ -7,6 +7,15 @@ out_data <-
            show_col_types = FALSE)
 
 out_data |>
+  graph_policy_comparisons(
+    out_ghq_baseline,
+    out_ghq_reform,
+    y_lab = "GQH score",
+    agg_method = mean,
+    ci_geom = "errorbar"
+  )
+
+out_data |>
   graph_policy_comparisons(out_ghq_baseline, out_ghq_reform,  y_lab = "GQH score")
 
 

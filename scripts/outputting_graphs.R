@@ -1,6 +1,8 @@
 library(readr)
 library(tidyverse)
+# source("R/graphing_functions.R")
 devtools::load_all()
+
 
 out_data <-
   read_csv(file.path(getwd(), "data/new_data.csv"),

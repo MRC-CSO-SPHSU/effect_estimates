@@ -1,14 +1,27 @@
 library(readr)
 library(tidyverse)
-library(SPHSUgraphs)
-library(hmisc)
+source(file.path(getwd(), "R/graphing_functions.R"))
 
 out_data <-
-  read_csv("C:/Programming/covid19_effect_estimates/data/new_data.csv",
+  read_csv(file.path(getwd(), "data/new_data.csv"),
            show_col_types = FALSE)
 
+out_data |>
+  graph_policy_comparisons(
+    out_ghq_baseline,
+    out_ghq_reform,
+    y_lab = "GQH score",
+    agg_method = mean,
+    ci_geom = "errorbar"
+  )
 
-# tidying dataset ---------------------------------------------------------
+out_data |>
+  graph_policy_comparisons(out_ghq_baseline, out_ghq_reform,  y_lab = "GQH score")
+
+
+# manual output (testing) -------------------------------------------------
+
+## tidying dataset --------------------------------------------------------
 
 
 compare_results <-
@@ -28,19 +41,21 @@ compare_results <-
   )
 
 
-# Examining quantiles
+## Examining quantiles -----------------------------------------------------
 compare_results |>
   group_by(scenario, time, outcome, policy) |>
   summarise(median = median(out),
             lower = quantile(out, 0.05),
             upper = quantile(out, 0.95))
 
-# faceted graph -----------------------------------------------------------
+## faceted graph -----------------------------------------------------------
+
 
 
 compare_results |>
   ggplot(aes(time, out, colour = policy, fill = policy)) +
-  geom_vline(xintercept = 2019, colour = "red") +
+  geom_vline(aes(xintercept = 2019, linetype = "Covid reform\nimplementation"),
+             colour = "red") +
   stat_summary(
     fun.data = median_hilow,
     geom = "ribbon",
@@ -49,16 +64,21 @@ compare_results |>
   ) +
   stat_summary(fun.data = median_hilow, geom = "line") +
   stat_summary(fun.data = median_hilow, geom = "point") +
-  facet_wrap(~ outcome, scales = "free_y") +
+  facet_wrap( ~ outcome, scales = "free_y") +
   scale_fill_manual(
     "Policy:",
     aesthetics = c("fill", "colour"),
     labels = c("Baseline", "Covid policy"),
     values = sphsu_cols("University Blue", "Rust", names = FALSE)
   ) +
-  labs(caption = paste("Notes:",
-       "50 simulation runs in each condition.",
-       "Red line denotes reform implementation point",
-       sep = "\n")) +
+  scale_linetype("") +
+  labs(
+    caption = paste(
+      "Notes:",
+      "50 simulation runs in each condition.",
+      "Red line denotes reform implementation point",
+      sep = "\n"
+    )
+  ) +
   theme(legend.position = "bottom",
         plot.caption = element_text(hjust = 0))
